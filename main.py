@@ -38,7 +38,7 @@ class RobloxGen:
         self.setup_headers()
         load_proxy(self)
         self.account_passw = self.generate_random_string(12)
-        self.capbypass_key = settings_json.get("capbypass_key", "71bab0e1aef21a9f100fb9298cc7bd43")
+        self.capbypass_key = "71bab0e1aef21a9f100fb9298cc7bd43"  # Your 2Captcha API key
 
     def setup_headers(self):
         self.session.headers.update({
@@ -93,6 +93,30 @@ class RobloxGen:
         except KeyError:
             self.nickname = nickname
 
+    def solve_captcha(self, captcha_data):
+        # Send captcha data to 2Captcha
+        response = requests.post("http://2captcha.com/in.php", data={
+            'key': self.capbypass_key,
+            'method': 'base64',
+            'body': captcha_data,
+            'json': 1
+        })
+        request_id = response.json().get("request")
+
+        if not request_id:
+            loguru.logger.error("Failed to get captcha request ID")
+            return ""
+
+        # Wait for captcha solution
+        time.sleep(20)  # Adjust this based on average solve time
+        response = requests.get(f"http://2captcha.com/res.php?key={self.capbypass_key}&action=get&id={request_id}&json=1")
+        result = response.json()
+        if result.get("status") == 1:
+            return result.get("text")
+        else:
+            loguru.logger.error(f"Captcha solving failed: {result.get('error', 'Unknown error')}")
+            return ""
+
     def signup_request(self):
         json_data = {
             "username": self.nickname,
@@ -112,11 +136,6 @@ class RobloxGen:
             },
         }
         return self.session.post("https://auth.roblox.com/v2/signup", json=json_data)
-
-    def solve_captcha(self, captcha_data):
-        # Placeholder function for Captcha solving using the capbypass_key
-        # Implement your captcha solving logic here
-        return "dummy_captcha_solution"
 
     def generate_account(self):
         self.session.headers["authority"] = "apis.roblox.com"
