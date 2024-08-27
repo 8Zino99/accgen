@@ -1,13 +1,10 @@
 import json
 import time
 import random
-import re
-import base64
 import requests
 from datetime import datetime, timezone
 from random_username.generate import generate_username
 from concurrent.futures import ThreadPoolExecutor
-
 import loguru
 
 def load_settings():
@@ -56,15 +53,20 @@ class RobloxGen:
         })
 
     def load_proxy(self):
-        proxy_list = open("proxy.txt", "r").readlines()
-        if not proxy_list:
-            loguru.logger.error("proxy.txt is empty, fill it with proxies.")
+        try:
+            with open("proxy.txt", "r") as file:
+                proxy_list = file.readlines()
+            if not proxy_list:
+                loguru.logger.error("proxy.txt is empty, fill it with proxies.")
+                exit()
+            self.proxy = random.choice(proxy_list).strip()
+            self.session.proxies = {
+                "http": "http://" + self.proxy,
+                "https": "http://" + self.proxy,
+            }
+        except FileNotFoundError:
+            loguru.logger.error("proxy.txt file not found. Please make sure it exists.")
             exit()
-        self.proxy = random.choice(proxy_list).strip()
-        self.session.proxies = {
-            "http": "http://" + self.proxy,
-            "https": "http://" + self.proxy,
-        }
 
     def generate_random_string(self, length):
         return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=length))
