@@ -1,6 +1,7 @@
 import json
 import time
 import random
+import base64
 import requests
 from datetime import datetime, timezone
 from random_username.generate import generate_username
@@ -15,22 +16,27 @@ def load_settings():
         loguru.logger.error("settings.json file not found. Please make sure it exists.")
         exit()
 
-# Load settings
-settings_json = load_settings()
-
-# Input Webhook URL and number of accounts
-webhook_url = input("Enter your Discord webhook URL: ").strip()
-try:
-    total_generate_count = int(input("How many accounts do you want to generate? ").strip())
-except ValueError:
-    loguru.logger.error("Invalid number of accounts. Please enter a valid integer.")
-    exit()
+def load_proxy():
+    try:
+        with open("proxy.txt", "r") as file:
+            proxy_list = file.readlines()
+        if not proxy_list:
+            loguru.logger.error("proxy.txt is empty, fill it with proxies.")
+            exit()
+        self.proxy = random.choice(proxy_list).strip()
+        self.session.proxies = {
+            "http": "http://" + self.proxy,
+            "https": "http://" + self.proxy,
+        }
+    except FileNotFoundError:
+        loguru.logger.error("proxy.txt file not found. Please make sure it exists.")
+        exit()
 
 class RobloxGen:
     def __init__(self):
         self.session = requests.Session()
         self.setup_headers()
-        self.load_proxy()
+        load_proxy(self)
         self.account_passw = self.generate_random_string(12)
         self.capbypass_key = settings_json.get("capbypass_key", "your_capbypass_key")
 
@@ -51,25 +57,6 @@ class RobloxGen:
             'sec-fetch-site': 'same-site',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         })
-
-    def load_proxy(self):
-        try:
-            with open("proxy.txt", "r") as file:
-                proxy_list = file.readlines()
-            if not proxy_list:
-                loguru.logger.error("proxy.txt is empty, fill it with proxies.")
-                exit()
-            self.proxy = random.choice(proxy_list).strip()
-            self.session.proxies = {
-                "http": "http://" + self.proxy,
-                "https": "http://" + self.proxy,
-            }
-        except FileNotFoundError:
-            loguru.logger.error("proxy.txt file not found. Please make sure it exists.")
-            exit()
-
-    def generate_random_string(self, length):
-        return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=length))
 
     def get_csrf(self):
         response = self.session.get("https://www.roblox.com/home")
@@ -227,6 +214,14 @@ def send_to_discord(file_path):
         loguru.logger.info("File sent to Discord successfully!")
     else:
         loguru.logger.error(f"Failed to send file to Discord. Status code: {response.status_code}")
+
+settings_json = load_settings()
+webhook_url = input("Enter your Discord webhook URL: ").strip()
+try:
+    total_generate_count = int(input("How many accounts do you want to generate? ").strip())
+except ValueError:
+    loguru.logger.error("Invalid number of accounts. Please enter a valid integer.")
+    exit()
 
 with ThreadPoolExecutor(max_workers=settings_json.get("thread_count", 4)) as executor:
     for _ in range(total_generate_count):
