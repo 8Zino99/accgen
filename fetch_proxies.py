@@ -20,13 +20,18 @@ except requests.exceptions.RequestException as e:
     print(f"Request failed: {e}")
     exit()
 
+print(f"Response Status Code: {response.status_code}")
+
 if response.status_code == 200:
     try:
         json_response = response.json()
-        if 'browserHtml' in json_response['data']:
-            print(json_response['data']['browserHtml'])
-        else:
+        print("API Response Data:")
+        print(json.dumps(json_response, indent=4))  # Zeigt die gesamte API-Antwort an
+        if 'data' in json_response and 'httpResponseBody' in json_response['data']:
+            print("Decoded HTML:")
             print(base64.b64decode(json_response['data']['httpResponseBody']).decode())
+        else:
+            print("No httpResponseBody in response data.")
     except (ValueError, KeyError) as e:
         print(f"Error parsing JSON response: {e}")
 else:
