@@ -38,7 +38,7 @@ class RobloxGen:
         self.setup_headers()
         load_proxy(self)
         self.account_passw = self.generate_random_string(12)
-        self.capbypass_key = settings_json.get("capbypass_key", "your_capbypass_key")
+        self.capbypass_key = settings_json.get("capbypass_key", "71bab0e1aef21a9f100fb9298cc7bd43")
 
     def setup_headers(self):
         self.session.headers.update({
