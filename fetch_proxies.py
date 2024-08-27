@@ -11,19 +11,33 @@ def fetch_proxies():
         "url": "https://books.toscrape.com/",
         "httpResponseBody": True
     }
-    response = requests.post(url, headers=headers, json=data)
-
+    
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()  # Raises HTTPError for bad responses
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return
+    
     print(f"Response Status Code: {response.status_code}")
     print(f"Response Text: {response.text}")
 
-    if response.status_code == 200:
+    try:
         json_response = response.json()
-        if 'browserHtml' in json_response['data']:
-            print(json_response['data']['browserHtml'])
-        else:
-            print(base64.b64decode(json_response['data']['httpResponseBody']).decode())
+    except ValueError:
+        print("Response is not in JSON format.")
+        return
+
+    if 'browserHtml' in json_response['data']:
+        print(json_response['data']['browserHtml'])
     else:
-        print(f"Failed to fetch proxies. Status code: {response.status_code}")
+        try:
+            decoded_body = base64.b64decode(json_response['data']['httpResponseBody']).decode()
+            print(decoded_body)
+        except KeyError:
+            print("Key 'httpResponseBody' not found in response data.")
+        except (base64.binascii.Error, UnicodeDecodeError) as e:
+            print(f"Error decoding base64 response: {e}")
 
 if __name__ == "__main__":
     fetch_proxies()
