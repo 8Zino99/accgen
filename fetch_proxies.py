@@ -1,5 +1,5 @@
 import requests
-import base64  # Füge diesen Import hinzu
+import base64
 
 def fetch_proxies():
     url = "https://api.proxyscrape.com/v3/accounts/freebies/scraperapi/request"
@@ -12,6 +12,9 @@ def fetch_proxies():
         "httpResponseBody": True
     }
     response = requests.post(url, headers=headers, json=data)
+
+    print(f"Response Status Code: {response.status_code}")
+    print(f"Response Text: {response.text}")
 
     if response.status_code == 200:
         json_response = response.json()
