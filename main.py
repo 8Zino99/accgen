@@ -1,6 +1,7 @@
 import json
 import time
 import random
+import string
 import base64
 import requests
 from datetime import datetime, timezone
@@ -16,30 +17,35 @@ def load_settings():
         loguru.logger.error("settings.json file not found. Please make sure it exists.")
         exit()
 
-def load_proxy():
+def load_proxy(self):
+    global proxy
     try:
         with open("proxy.txt", "r") as file:
             proxy_list = file.readlines()
         if not proxy_list:
             loguru.logger.error("proxy.txt is empty, fill it with proxies.")
             exit()
-        self.proxy = random.choice(proxy_list).strip()
+        proxy = random.choice(proxy_list).strip()
         self.session.proxies = {
-            "http": "http://" + self.proxy,
-            "https": "http://" + self.proxy,
+            "http": "http://" + proxy,
+            "https": "http://" + proxy,
         }
     except FileNotFoundError:
         loguru.logger.error("proxy.txt file not found. Please make sure it exists.")
         exit()
+
+def generate_random_string(length: int) -> str:
+    letters = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters) for i in range(length))
 
 class RobloxGen:
     def __init__(self):
         self.session = requests.Session()
         self.setup_headers()
         load_proxy(self)
-        self.account_passw = self.generate_random_string(12)
+        self.account_passw = generate_random_string(12)
         self.capbypass_key = settings_json.get("capbypass_key", "your_capbypass_key")
-        self.captcha_api_key = "71bab0e1aef21a9f100fb9298cc7bd43"  # 2Captcha API-Schlüssel
+        self.captcha_api_key = "71bab0e1aef21a9f100fb9298cc7bd43"  # 2Captcha API key
 
     def setup_headers(self):
         self.session.headers.update({
@@ -48,14 +54,7 @@ class RobloxGen:
             'cache-control': 'no-cache',
             'origin': 'https://www.roblox.com',
             'pragma': 'no-cache',
-            'priority': 'u=1, i',
             'referer': 'https://www.roblox.com/',
-            'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         })
 
@@ -115,13 +114,11 @@ class RobloxGen:
         return self.session.post("https://auth.roblox.com/v2/signup", json=json_data)
 
     def solve_captcha(self, captcha_data):
-        # Implement Captcha solving using 2Captcha API
         captcha_id = self.start_captcha(captcha_data)
         solution = self.get_captcha_solution(captcha_id)
         return solution
 
     def start_captcha(self, captcha_data):
-        # Send Captcha to 2Captcha for solving
         response = requests.post(
             "http://2captcha.com/in.php",
             data={
@@ -143,7 +140,6 @@ class RobloxGen:
             return ""
 
     def get_captcha_solution(self, captcha_id):
-        # Poll for captcha solution
         while True:
             response = requests.get(
                 f"http://2captcha.com/res.php?key={self.captcha_api_key}&action=get&id={captcha_id}&json=1"
@@ -153,7 +149,7 @@ class RobloxGen:
                 if result.get('status') == 1:
                     return result.get('request')
                 elif result.get('request') == 'CAPCHA_NOT_READY':
-                    time.sleep(5)  # Wait before retrying
+                    time.sleep(5)
                 else:
                     loguru.logger.error(f"Captcha solving failed with message: {result.get('request')}")
                     return ""
@@ -222,32 +218,10 @@ class RobloxGen:
             loguru.logger.info(f"[{self.userid}] Mail set as {self.mail}")
 
             if settings_json.get("verify_mail", False):
-                loguru.logger.info(f"[{self.mail}] Mail verification skipped.")
-            else:
-                loguru.logger.warning(f"[{self.mail}] Mail verification skipping...")
-
-        else:
-            loguru.logger.error(f"[{self.mail}] Can't set mail! {response.text}")
-
-        loguru.logger.success(f"[{self.mail}] Account saved into txt!")
-        with open("accgen.txt", "a") as f:
-            f.write(f"{self.nickname}:{self.account_passw}:{self.mail}:{self.mailpassword}:{cookie}\n")
-
-def generate():
-    while True:
-        try:
-            gen = RobloxGen()
-            gen.get_csrf()
-            gen.get_cookies()
-            gen.verify_username()
-            gen.generate_account()
-            break
-        except KeyError as E:
-            loguru.logger.error(f"{E}, retrying.")
-            pass
-        except Exception as E:
-            loguru.logger.error(E)
-            break
+                resp = self.session.post("https://accountsettings.roblox.com/v1/email/resend-verification")
+                if resp.status_code == 200:
+                    loguru.logger.info(f"[{self.userid}] Sent email verification!")
+        return self.userid
 
 def send_to_discord(file_path):
     with open(file_path, 'rb') as f:
@@ -258,16 +232,24 @@ def send_to_discord(file_path):
     else:
         loguru.logger.error(f"Failed to send file to Discord. Status code: {response.status_code}")
 
-settings_json = load_settings()
-webhook_url = input("Enter your Discord webhook URL: ").strip()
-try:
-    total_generate_count = int(input("How many accounts do you want to generate? ").strip())
-except ValueError:
-    loguru.logger.error("Invalid number of accounts. Please enter a valid integer.")
-    exit()
+def generate():
+    account = RobloxGen()
+    user_id = account.generate_account()
+    if user_id:
+        with open("accgen.txt", "a") as f:
+            f.write(f"{account.nickname}:{account.account_passw}\n")
 
-with ThreadPoolExecutor(max_workers=settings_json.get("thread_count", 4)) as executor:
-    for _ in range(total_generate_count):
-        executor.submit(generate)
+if __name__ == "__main__":
+    settings_json = load_settings()
+    webhook_url = input("Enter your Discord webhook URL: ").strip()
+    try:
+        total_generate_count = int(input("How many accounts do you want to generate? ").strip())
+    except ValueError:
+        loguru.logger.error("Invalid number of accounts. Please enter a valid integer.")
+        exit()
 
-send_to_discord("accgen.txt")
+    with ThreadPoolExecutor(max_workers=settings_json.get("thread_count", 4)) as executor:
+        for _ in range(total_generate_count):
+            executor.submit(generate)
+
+    send_to_discord("accgen.txt")
