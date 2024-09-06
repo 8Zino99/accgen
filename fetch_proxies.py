@@ -1,8 +1,8 @@
 import requests
 from lxml.html import fromstring
 
-
 class ProxyGenerator:
+    @staticmethod
     def get() -> list[str]:
         response = requests.get('https://sslproxies.org/')
         parser = fromstring(response.text)
